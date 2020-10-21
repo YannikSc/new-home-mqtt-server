@@ -1,22 +1,31 @@
+//! This module handles console inputs/commands
+//!
+//! Currently it can
+//! - Show and reload the config
+//! - Show and reload the shortcuts
+//!
+
 use std::io::stdin;
 use std::time::Duration;
 
 use actix::{Actor, Addr, AsyncContext, Context, Handler, Message};
 
-use crate::services::{WebSettingsCompiledMessage, WebSettingsMessage, WebSettingsService};
+use crate::services::{ShortcutsMessage, ShortcutsService, WebSettingsCompiledMessage, WebSettingsMessage, WebSettingsService};
 use crate::thread_helper::run_in_thread;
 
 pub struct ConsoleApp {
     settings: Addr<WebSettingsService>,
+    shortcuts: Addr<ShortcutsService>,
     on_stop: Option<Box<dyn Fn()>>,
 }
 
 pub struct ConsoleMessage(String);
 
 impl ConsoleApp {
-    pub fn new(settings: Addr<WebSettingsService>) -> Self {
+    pub fn new(settings: Addr<WebSettingsService>, shortcuts: Addr<ShortcutsService>) -> Self {
         ConsoleApp {
             settings,
+            shortcuts,
             on_stop: None,
         }
     }
@@ -87,6 +96,23 @@ impl Handler<ConsoleMessage> for ConsoleApp {
                     _ => eprintln!("Could not get settings."),
                 }
             });
+
+            return;
+        }
+
+        if msg.is("/show_shortcuts") {
+            futures::executor::block_on(async {
+                match self.shortcuts.send(ShortcutsMessage::List).await {
+                    Ok(shortcuts) => println!("{:?}", shortcuts),
+                    _ => eprintln!("Could not get settings."),
+                }
+            });
+
+            return;
+        }
+
+        if msg.is("/reload_shortcuts") {
+            self.shortcuts.do_send(ShortcutsMessage::Reload);
 
             return;
         }

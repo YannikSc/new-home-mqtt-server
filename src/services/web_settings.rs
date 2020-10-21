@@ -1,3 +1,5 @@
+//! Here are all web-settings related structs implemented.
+
 use std::env;
 use std::fs::{File, OpenOptions};
 

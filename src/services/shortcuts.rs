@@ -1,3 +1,5 @@
+//! This module implements all shortcut related structs and traits.
+
 use std::collections::HashMap;
 use std::env::current_dir;
 use std::fs::OpenOptions;
@@ -35,6 +37,11 @@ impl Handler<ShortcutsMessage> for ShortcutsService {
             ShortcutsMessage::Delete(name) => {
                 self.shortcuts.remove(&name);
                 self.shortcuts.save_shortcuts();
+
+                MessageResult(self.shortcuts.clone())
+            }
+            ShortcutsMessage::Reload => {
+                self.shortcuts = HashMap::<String, Vec<ShortcutData>>::load_shortcuts();
 
                 MessageResult(self.shortcuts.clone())
             }
