@@ -2,6 +2,8 @@
 **/*.rs.bk
 .idea
 .vscode
-clients.yaml
-config.yaml
-rooms.yaml
+dashboard.yaml
+group.yaml
+settings.yaml
+shortcuts.yaml
+web_settings.yaml

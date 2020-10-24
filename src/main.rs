@@ -11,7 +11,7 @@ use actix::Actor;
 use actix_web::rt::{Arbiter, System};
 
 use crate::console::ConsoleApp;
-use crate::services::{DashboardService, ShortcutsService, WebSettingsCompiledMessage, WebSettingsService};
+use crate::services::{DashboardService, GroupService, ShortcutsService, WebSettingsCompiledMessage, WebSettingsService};
 use crate::settings::AppSettings;
 use crate::web_handler::start_web_server;
 
@@ -39,17 +39,29 @@ fn main() {
     let dashboard_addr =
         DashboardService::start_in_arbiter(&dashboard_arbiter, |_| DashboardService::new());
 
+    let group_dashboard_addr = Clone::clone(&dashboard_addr);
+    let mut group_arbiter = Arbiter::new();
+    let group_addr =
+        GroupService::start_in_arbiter(&group_arbiter, |_| GroupService::new(group_dashboard_addr));
+
     let mut console_arbiter = Arbiter::new();
     let console_settings = Clone::clone(&web_settings_addr);
     let console_shortcuts = Clone::clone(&shortcuts_addr);
     let console_dashboard = Clone::clone(&dashboard_addr);
-    ConsoleApp::start_in_arbiter(&console_arbiter, move |_| ConsoleApp::new(console_settings, console_shortcuts, console_dashboard));
+    let console_group = Clone::clone(&group_addr);
+    ConsoleApp::start_in_arbiter(&console_arbiter, move |_| ConsoleApp::new(
+        console_settings,
+        console_shortcuts,
+        console_dashboard,
+        console_group,
+    ));
 
     let server = start_web_server(
         format!("{}:{}", &app_settings.host, &app_settings.port),
         web_settings_addr,
         shortcuts_addr,
         dashboard_addr,
+        group_addr,
         app_settings.clone(),
     );
 
@@ -59,4 +71,5 @@ fn main() {
     console_arbiter.join().unwrap();
     shortcuts_arbiter.join().unwrap();
     dashboard_arbiter.join().unwrap();
+    group_arbiter.join().unwrap();
 }

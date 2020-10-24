@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use actix::Addr;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -10,6 +11,7 @@ use crate::settings::WebSettings;
 pub mod shortcuts;
 pub mod web_settings;
 pub mod dashboard;
+pub mod group;
 
 /// The WebSettings service gives the option to get and load the web settings.
 /// It can give them as a struct or as a "compiled" JavaScript object.
@@ -64,10 +66,11 @@ pub struct DashboardData {
 /// This actor takes care of all Group and Group item transactions
 pub struct GroupService {
     groups: Vec<GroupData>,
+    dashboard: Addr<DashboardService>,
 }
 
 /// Contains all dashboard group data
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct GroupData {
     name: String,
     size: i32,
@@ -76,7 +79,7 @@ pub struct GroupData {
 }
 
 /// Contains information
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct GroupItemData {
     name: String,
     #[serde(rename = "type")]
@@ -93,6 +96,12 @@ pub trait DataReadWrite {
 
     fn single(&self, which: String) -> Self;
 }
+
+/// This traits get the index (in a vector) or key (in a HashMap) for the given search term (or None)
+trait IndexOf<I, T> {
+    fn index_of(&self, search: T) -> Option<I>;
+}
+
 
 /// This enum provides all the options that the [ShortcutsService] is responding to.
 /// All methods return a list of all results (except the Get)

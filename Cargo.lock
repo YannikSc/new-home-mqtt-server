@@ -1054,6 +1054,7 @@ dependencies = [
  "actix",
  "actix-web",
  "futures",
+ "percent-encoding",
  "serde",
  "serde_json",
  "serde_yaml",

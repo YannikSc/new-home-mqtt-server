@@ -82,6 +82,7 @@ impl DataReadWrite for HashMap<String, Vec<ShortcutData>> {
         let file = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(shortcuts_path);
 
         match file {

@@ -4,7 +4,7 @@ use std::io::Write;
 
 use actix::{Actor, Context, Handler, Message, MessageResult};
 
-use crate::services::{DashboardData, DashboardMessage, DashboardService, DataReadWrite};
+use crate::services::{DashboardData, DashboardMessage, DashboardService, DataReadWrite, IndexOf};
 
 impl DataReadWrite for Vec<DashboardData> {
     fn load() -> Self {
@@ -68,10 +68,6 @@ impl DataReadWrite for Vec<DashboardData> {
 
         Vec::new()
     }
-}
-
-trait IndexOf<I, T> {
-    fn index_of(&self, search: T) -> Option<I>;
 }
 
 impl IndexOf<usize, String> for Vec<DashboardData> {

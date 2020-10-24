@@ -6,8 +6,9 @@ use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, web};
 use actix_web::client::Client;
 use actix_web::Error;
 use actix_web::web::{Bytes, Data, Json, Path};
+use serde_json::Value;
 
-use crate::services::{DashboardData, DashboardMessage, DashboardService, ShortcutData, ShortcutsMessage, ShortcutsService, WebSettingsCompiledMessage, WebSettingsService};
+use crate::services::{DashboardData, DashboardMessage, DashboardService, GroupData, GroupMessage, GroupService, ShortcutData, ShortcutsMessage, ShortcutsService, WebSettingsCompiledMessage, WebSettingsService};
 use crate::settings::{AppSettings, ServerType};
 
 pub async fn start_web_server(
@@ -15,6 +16,7 @@ pub async fn start_web_server(
     web_settings: Addr<WebSettingsService>,
     shortcuts: Addr<ShortcutsService>,
     dashboard: Addr<DashboardService>,
+    group: Addr<GroupService>,
     settings: AppSettings,
 ) -> std::io::Result<()> {
     HttpServer::new(move || {
@@ -23,6 +25,7 @@ pub async fn start_web_server(
             .data(shortcuts.clone())
             .data(settings.clone())
             .data(dashboard.clone())
+            .data(group.clone())
             .data(Client::new())
             .route("/settings.js", web::get().to(settings_js))
             .route("/api/shortcut", web::get().to(api_shortcuts_list))
@@ -32,6 +35,9 @@ pub async fn start_web_server(
             .route("/api/dashboard/{name}", web::get().to(api_dashboard_get))
             .route("/api/dashboard/{name}", web::post().to(api_dashboard_post))
             .route("/api/dashboard/{name}", web::delete().to(api_dashboard_delete))
+            .route("/api/group/{name}", web::get().to(api_group_get))
+            .route("/api/group/{name}", web::post().to(api_group_post))
+            .route("/api/group/{name}", web::delete().to(api_group_delete))
             .route(
                 "/api/shortcut/{name}",
                 web::delete().to(api_shortcut_delete),
@@ -71,6 +77,8 @@ async fn api_shortcut_get(
     name: Path<String>,
     shortcuts: Data<Addr<ShortcutsService>>,
 ) -> impl Responder {
+    let name = Path(percent_encoding::percent_decode_str(name.0.as_str()).decode_utf8_lossy().to_string());
+
     let shortcuts = match shortcuts
         .send(ShortcutsMessage::Get(name.to_string()))
         .await
@@ -91,6 +99,8 @@ async fn api_shortcut_post(
     body: Json<Vec<ShortcutData>>,
     shortcuts: Data<Addr<ShortcutsService>>,
 ) -> impl Responder {
+    let name = Path(percent_encoding::percent_decode_str(name.0.as_str()).decode_utf8_lossy().to_string());
+
     let shortcuts = match shortcuts
         .send(ShortcutsMessage::Add(name.to_string(), body.0))
         .await
@@ -110,6 +120,8 @@ async fn api_shortcut_delete(
     name: Path<String>,
     shortcuts: Data<Addr<ShortcutsService>>,
 ) -> impl Responder {
+    let name = Path(percent_encoding::percent_decode_str(name.0.as_str()).decode_utf8_lossy().to_string());
+
     let shortcuts = match shortcuts
         .send(ShortcutsMessage::Delete(name.to_string()))
         .await
@@ -139,6 +151,8 @@ async fn api_dashboard_list(dashboard: Data<Addr<DashboardService>>) -> impl Res
 }
 
 async fn api_dashboard_get(name: Path<String>, dashboard: Data<Addr<DashboardService>>) -> impl Responder {
+    let name = Path(percent_encoding::percent_decode_str(name.0.as_str()).decode_utf8_lossy().to_string());
+
     let dashboard = match dashboard.send(DashboardMessage::Get(name.0)).await {
         Ok(dashboard) => dashboard,
         Err(error) => {
@@ -152,6 +166,8 @@ async fn api_dashboard_get(name: Path<String>, dashboard: Data<Addr<DashboardSer
 }
 
 async fn api_dashboard_post(name: Path<String>, body: Json<DashboardData>, dashboard: Data<Addr<DashboardService>>) -> impl Responder {
+    let name = Path(percent_encoding::percent_decode_str(name.0.as_str()).decode_utf8_lossy().to_string());
+
     let dashboards = match dashboard.send(DashboardMessage::Set(name.0, body.0)).await {
         Ok(dashboard) => dashboard,
         Err(error) => {
@@ -165,6 +181,8 @@ async fn api_dashboard_post(name: Path<String>, body: Json<DashboardData>, dashb
 }
 
 async fn api_dashboard_delete(name: Path<String>, dashboard: Data<Addr<DashboardService>>) -> impl Responder {
+    let name = Path(percent_encoding::percent_decode_str(name.0.as_str()).decode_utf8_lossy().to_string());
+
     let dashboard = match dashboard.send(DashboardMessage::Delete(name.0)).await {
         Ok(dashboard) => dashboard,
         Err(error) => {
@@ -175,6 +193,51 @@ async fn api_dashboard_delete(name: Path<String>, dashboard: Data<Addr<Dashboard
     };
 
     HttpResponse::Ok().json(dashboard)
+}
+
+async fn api_group_get(name: Path<String>, group: Data<Addr<GroupService>>) -> impl Responder {
+    let name = Path(percent_encoding::percent_decode_str(name.0.as_str()).decode_utf8_lossy().to_string());
+
+    let group = match group.send(GroupMessage::Get(name.0)).await {
+        Ok(group) => group,
+        Err(error) => {
+            eprintln!("[ERROR] [Web Selver] {:?}", error);
+
+            return HttpResponse::Ok().json(Value::Null);
+        }
+    };
+
+    HttpResponse::Ok().json(group)
+}
+
+async fn api_group_post(name: Path<String>, body: Json<GroupData>, group: Data<Addr<GroupService>>) -> impl Responder {
+    let name = Path(percent_encoding::percent_decode_str(name.0.as_str()).decode_utf8_lossy().to_string());
+
+    let group = match group.send(GroupMessage::Set(name.0, body.0)).await {
+        Ok(group) => group,
+        Err(error) => {
+            eprintln!("[ERROR] [Web Server] {:?}", error);
+
+            return HttpResponse::Ok().json(Value::Null);
+        }
+    };
+
+    HttpResponse::Ok().json(group)
+}
+
+async fn api_group_delete(name: Path<String>, group: Data<Addr<GroupService>>) -> impl Responder {
+    let name = Path(percent_encoding::percent_decode_str(name.0.as_str()).decode_utf8_lossy().to_string());
+
+    let group = match group.send(GroupMessage::Delete(name.0)).await {
+        Ok(group) => group,
+        Err(error) => {
+            eprintln!("[ERROR] [Web Server] {:?}", error);
+
+            return HttpResponse::Ok().json(Value::Null);
+        }
+    };
+
+    HttpResponse::Ok().json(group)
 }
 
 async fn default_service(
