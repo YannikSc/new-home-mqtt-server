@@ -122,24 +122,24 @@ impl Handler<DashboardMessage> for DashboardService {
             }
             DashboardMessage::Get(name) => MessageResult(self.dashboards.single(name)),
             DashboardMessage::Set(name, data) => {
-                self.dashboards.save();
-
                 if let Some(index) = self.dashboards.index_of(name) {
-                    self.dashboards.insert(index, data.clone());
+                    self.dashboards[index] = data.clone();
+                    self.dashboards.save();
 
                     return MessageResult(self.dashboards.clone());
                 }
 
                 self.dashboards.push(data.clone());
+                self.dashboards.save();
 
                 MessageResult(self.dashboards.clone())
             }
             DashboardMessage::Delete(name) => {
-                self.dashboards.save();
-
                 if let Some(index) = self.dashboards.index_of(name) {
                     self.dashboards.remove(index);
                 }
+
+                self.dashboards.save();
 
                 MessageResult(self.dashboards.clone())
             }
