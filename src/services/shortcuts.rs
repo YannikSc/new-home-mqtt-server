@@ -7,12 +7,12 @@ use std::io::Write;
 
 use actix::{Actor, Context, Handler, Message, MessageResult};
 
-use crate::services::{ShortcutData, ShortcutReadWrite, ShortcutsMessage, ShortcutsService};
+use crate::services::{ShortcutData, DataReadWrite, ShortcutsMessage, ShortcutsService};
 
 impl ShortcutsService {
     pub fn new() -> Self {
         Self {
-            shortcuts: HashMap::<String, Vec<ShortcutData>>::load_shortcuts(),
+            shortcuts: HashMap::<String, Vec<ShortcutData>>::load(),
         }
     }
 }
@@ -30,18 +30,18 @@ impl Handler<ShortcutsMessage> for ShortcutsService {
             ShortcutsMessage::Get(name) => MessageResult(self.shortcuts.single(name)),
             ShortcutsMessage::Add(name, data) => {
                 self.shortcuts.insert(name, data);
-                self.shortcuts.save_shortcuts();
+                self.shortcuts.save();
 
                 MessageResult(self.shortcuts.clone())
             }
             ShortcutsMessage::Delete(name) => {
                 self.shortcuts.remove(&name);
-                self.shortcuts.save_shortcuts();
+                self.shortcuts.save();
 
                 MessageResult(self.shortcuts.clone())
             }
             ShortcutsMessage::Reload => {
-                self.shortcuts = HashMap::<String, Vec<ShortcutData>>::load_shortcuts();
+                self.shortcuts = HashMap::<String, Vec<ShortcutData>>::load();
 
                 MessageResult(self.shortcuts.clone())
             }
@@ -53,8 +53,8 @@ impl Message for ShortcutsMessage {
     type Result = HashMap<String, Vec<ShortcutData>>;
 }
 
-impl ShortcutReadWrite for HashMap<String, Vec<ShortcutData>> {
-    fn load_shortcuts() -> Self {
+impl DataReadWrite for HashMap<String, Vec<ShortcutData>> {
+    fn load() -> Self {
         let shortcuts_path = current_dir().unwrap().join("shortcuts.yaml");
         let file = OpenOptions::new().read(true).open(shortcuts_path);
 
@@ -77,7 +77,7 @@ impl ShortcutReadWrite for HashMap<String, Vec<ShortcutData>> {
         }
     }
 
-    fn save_shortcuts(&self) {
+    fn save(&self) {
         let shortcuts_path = current_dir().unwrap().join("shortcuts.yaml");
         let file = OpenOptions::new()
             .write(true)

@@ -2,21 +2,19 @@ use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 
 use actix::Addr;
+use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, web};
 use actix_web::client::Client;
-use actix_web::web::{Bytes, Data, Json, Path};
 use actix_web::Error;
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::web::{Bytes, Data, Json, Path};
 
-use crate::services::{
-    ShortcutData, ShortcutsMessage, ShortcutsService, WebSettingsCompiledMessage,
-    WebSettingsService,
-};
+use crate::services::{DashboardData, DashboardMessage, DashboardService, ShortcutData, ShortcutsMessage, ShortcutsService, WebSettingsCompiledMessage, WebSettingsService};
 use crate::settings::{AppSettings, ServerType};
 
 pub async fn start_web_server(
     bind_addr: impl ToSocketAddrs,
     web_settings: Addr<WebSettingsService>,
     shortcuts: Addr<ShortcutsService>,
+    dashboard: Addr<DashboardService>,
     settings: AppSettings,
 ) -> std::io::Result<()> {
     HttpServer::new(move || {
@@ -24,20 +22,25 @@ pub async fn start_web_server(
             .data(web_settings.clone())
             .data(shortcuts.clone())
             .data(settings.clone())
+            .data(dashboard.clone())
             .data(Client::new())
             .route("/settings.js", web::get().to(settings_js))
             .route("/api/shortcut", web::get().to(api_shortcuts_list))
             .route("/api/shortcut/{name}", web::get().to(api_shortcut_get))
             .route("/api/shortcut/{name}", web::post().to(api_shortcut_post))
+            .route("/api/dashboard", web::get().to(api_dashboard_list))
+            .route("/api/dashboard/{name}", web::get().to(api_dashboard_get))
+            .route("/api/dashboard/{name}", web::post().to(api_dashboard_post))
+            .route("/api/dashboard/{name}", web::delete().to(api_dashboard_delete))
             .route(
                 "/api/shortcut/{name}",
                 web::delete().to(api_shortcut_delete),
             )
             .default_service(web::to(default_service))
     })
-    .bind(bind_addr)?
-    .run()
-    .await
+        .bind(bind_addr)?
+        .run()
+        .await
 }
 
 async fn settings_js(settings: Data<Addr<WebSettingsService>>) -> impl Responder {
@@ -120,6 +123,58 @@ async fn api_shortcut_delete(
     };
 
     HttpResponse::Ok().json(&shortcuts)
+}
+
+async fn api_dashboard_list(dashboard: Data<Addr<DashboardService>>) -> impl Responder {
+    let dashboards = match dashboard.send(DashboardMessage::List).await {
+        Ok(dashboards) => dashboards,
+        Err(error) => {
+            eprintln!("[ERROR] [Web Server] {:?}", error);
+
+            Vec::new()
+        }
+    };
+
+    HttpResponse::Ok().json(dashboards)
+}
+
+async fn api_dashboard_get(name: Path<String>, dashboard: Data<Addr<DashboardService>>) -> impl Responder {
+    let dashboard = match dashboard.send(DashboardMessage::Get(name.0)).await {
+        Ok(dashboard) => dashboard,
+        Err(error) => {
+            eprintln!("[ERROR] [Web Server] {:?}", error);
+
+            Vec::new()
+        }
+    };
+
+    HttpResponse::Ok().json(dashboard)
+}
+
+async fn api_dashboard_post(name: Path<String>, body: Json<DashboardData>, dashboard: Data<Addr<DashboardService>>) -> impl Responder {
+    let dashboards = match dashboard.send(DashboardMessage::Set(name.0, body.0)).await {
+        Ok(dashboard) => dashboard,
+        Err(error) => {
+            eprintln!("[ERROR] [Web Server] {:?}", error);
+
+            Vec::new()
+        }
+    };
+
+    HttpResponse::Ok().json(dashboards)
+}
+
+async fn api_dashboard_delete(name: Path<String>, dashboard: Data<Addr<DashboardService>>) -> impl Responder {
+    let dashboard = match dashboard.send(DashboardMessage::Delete(name.0)).await {
+        Ok(dashboard) => dashboard,
+        Err(error) => {
+            eprintln!("[ERROR] [Web Server] {:?}", error);
+
+            Vec::new()
+        }
+    };
+
+    HttpResponse::Ok().json(dashboard)
 }
 
 async fn default_service(

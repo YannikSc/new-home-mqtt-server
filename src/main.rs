@@ -11,7 +11,7 @@ use actix::Actor;
 use actix_web::rt::{Arbiter, System};
 
 use crate::console::ConsoleApp;
-use crate::services::{ShortcutsService, WebSettingsCompiledMessage, WebSettingsService};
+use crate::services::{DashboardService, ShortcutsService, WebSettingsCompiledMessage, WebSettingsService};
 use crate::settings::AppSettings;
 use crate::web_handler::start_web_server;
 
@@ -35,15 +35,21 @@ fn main() {
     let shortcuts_addr =
         ShortcutsService::start_in_arbiter(&shortcuts_arbiter, |_| ShortcutsService::new());
 
+    let mut dashboard_arbiter = Arbiter::new();
+    let dashboard_addr =
+        DashboardService::start_in_arbiter(&dashboard_arbiter, |_| DashboardService::new());
+
     let mut console_arbiter = Arbiter::new();
     let console_settings = Clone::clone(&web_settings_addr);
     let console_shortcuts = Clone::clone(&shortcuts_addr);
-    ConsoleApp::start_in_arbiter(&console_arbiter, move |_| ConsoleApp::new(console_settings, console_shortcuts));
+    let console_dashboard = Clone::clone(&dashboard_addr);
+    ConsoleApp::start_in_arbiter(&console_arbiter, move |_| ConsoleApp::new(console_settings, console_shortcuts, console_dashboard));
 
     let server = start_web_server(
         format!("{}:{}", &app_settings.host, &app_settings.port),
         web_settings_addr,
         shortcuts_addr,
+        dashboard_addr,
         app_settings.clone(),
     );
 
@@ -52,4 +58,5 @@ fn main() {
     web_settings_arbiter.join().unwrap();
     console_arbiter.join().unwrap();
     shortcuts_arbiter.join().unwrap();
+    dashboard_arbiter.join().unwrap();
 }

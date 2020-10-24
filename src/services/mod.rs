@@ -9,6 +9,7 @@ use crate::settings::WebSettings;
 
 pub mod shortcuts;
 pub mod web_settings;
+pub mod dashboard;
 
 /// The WebSettings service gives the option to get and load the web settings.
 /// It can give them as a struct or as a "compiled" JavaScript object.
@@ -48,21 +49,102 @@ pub struct ShortcutData {
     options: Value,
 }
 
-/// This trait is used to give the shortcuts type [HashMap<String, ShortcutData>] a way to easily
-/// load and save the data to or from disk (shortcuts.yaml).
-pub trait ShortcutReadWrite {
-    fn load_shortcuts() -> Self;
+/// As an actor it takes care of dashboard actions
+pub struct DashboardService {
+    dashboards: Vec<DashboardData>,
+}
 
-    fn save_shortcuts(&self);
+/// Contains all dashboard relevant data
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct DashboardData {
+    name: String,
+    groups: Vec<String>,
+}
+
+/// This actor takes care of all Group and Group item transactions
+pub struct GroupService {
+    groups: Vec<GroupData>,
+}
+
+/// Contains all dashboard group data
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct GroupData {
+    name: String,
+    size: i32,
+    order: i32,
+    items: Vec<GroupItemData>,
+}
+
+/// Contains information
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct GroupItemData {
+    name: String,
+    #[serde(rename = "type")]
+    item_type: String,
+    data: Value,
+}
+
+/// This trait gives data structs a way to load and save its data from/to a file and also extracts
+/// a named entity as a list as the API needs it
+pub trait DataReadWrite {
+    fn load() -> Self;
+
+    fn save(&self);
 
     fn single(&self, which: String) -> Self;
 }
 
 /// This enum provides all the options that the [ShortcutsService] is responding to.
+/// All methods return a list of all results (except the Get)
 pub enum ShortcutsMessage {
+    /// Gets a list of all shortcuts
     List,
+
+    /// Reloads the shortcuts from the shortcuts.yaml
     Reload,
+
+    /// Gets the single shortcut
     Get(String),
+
+    /// Adds a new shortcut with the given name as key in the yaml file
     Add(String, Vec<ShortcutData>),
+
+    /// Deletes the given key from the yaml file
+    Delete(String),
+}
+
+/// All the available Dashboard related actions are here
+/// All methods return all (remaining/created) dashboards (except the Get)
+pub enum DashboardMessage {
+    /// Lists all available dashboards
+    List,
+
+    /// Reloads the dashboards from the yaml file
+    Reload,
+
+    /// Gets a single dashboard
+    Get(String),
+
+    /// Sets the given dashboard key to the given dashboard
+    Set(String, DashboardData),
+
+    /// Deletes the given dashboard from the yaml file
+    Delete(String),
+}
+
+
+/// All the available group related actions are here
+pub enum GroupMessage {
+    /// Reloads the groups from the yaml file
+    /// Returns an empty group
+    Reload,
+
+    /// Gets a single group
+    Get(String),
+
+    /// Sets the given group key to the given group
+    Set(String, GroupData),
+
+    /// Deletes the given group from the yaml file
     Delete(String),
 }

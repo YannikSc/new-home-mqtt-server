@@ -10,22 +10,24 @@ use std::time::Duration;
 
 use actix::{Actor, Addr, AsyncContext, Context, Handler, Message};
 
-use crate::services::{ShortcutsMessage, ShortcutsService, WebSettingsCompiledMessage, WebSettingsMessage, WebSettingsService};
+use crate::services::{DashboardMessage, DashboardService, ShortcutsMessage, ShortcutsService, WebSettingsCompiledMessage, WebSettingsMessage, WebSettingsService};
 use crate::thread_helper::run_in_thread;
 
 pub struct ConsoleApp {
     settings: Addr<WebSettingsService>,
     shortcuts: Addr<ShortcutsService>,
+    dashboard: Addr<DashboardService>,
     on_stop: Option<Box<dyn Fn()>>,
 }
 
 pub struct ConsoleMessage(String);
 
 impl ConsoleApp {
-    pub fn new(settings: Addr<WebSettingsService>, shortcuts: Addr<ShortcutsService>) -> Self {
+    pub fn new(settings: Addr<WebSettingsService>, shortcuts: Addr<ShortcutsService>, dashboard: Addr<DashboardService>) -> Self {
         ConsoleApp {
             settings,
             shortcuts,
+            dashboard,
             on_stop: None,
         }
     }
@@ -113,6 +115,12 @@ impl Handler<ConsoleMessage> for ConsoleApp {
 
         if msg.is("/reload_shortcuts") {
             self.shortcuts.do_send(ShortcutsMessage::Reload);
+
+            return;
+        }
+
+        if msg.is("/reload_dashboards") {
+            self.dashboard.do_send(DashboardMessage::Reload);
 
             return;
         }
