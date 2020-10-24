@@ -1,10 +1,5 @@
 ---
-- name: New Dashboard
+- name: Test Board
   groups:
     - New Group
-    - New Group 2
-- name: Second Dashboard
-  groups:
     - Test Group
-    - Fourth Group
-    - New Group- Fourth Group
