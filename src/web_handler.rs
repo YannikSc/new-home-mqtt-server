@@ -22,62 +22,60 @@ pub async fn start_web_server(
     group: Addr<GroupService>,
     settings: AppSettings,
 ) -> std::io::Result<()> {
-    HttpServer::new(move || {
-        App::new()
-            .data(web_settings.clone())
-            .data(shortcuts.clone())
-            .data(settings.clone())
-            .data(dashboard.clone())
-            .data(group.clone())
-            .data(Client::new())
-            .route("/src/settings.js", web::get().to(settings_js))
-            .route("/api/shortcut", web::get().to(api_shortcuts_list))
-            .route("/api/shortcut/{name}", web::get().to(api_shortcut_get))
-            .route("/api/shortcut/{name}", web::post().to(api_shortcut_post))
-            .route("/api/dashboard", web::get().to(api_dashboard_list))
-            .route("/api/dashboard/{name}", web::get().to(api_dashboard_get))
-            .route("/api/dashboard/{name}", web::post().to(api_dashboard_post))
-            .route("/api/dashboard/{name}", web::delete().to(api_dashboard_delete))
-            .route("/api/group/{name}", web::get().to(api_group_get))
-            .route("/api/group/{name}", web::post().to(api_group_post))
-            .route("/api/group/{name}", web::delete().to(api_group_delete))
-            .route(
-                "/api/shortcut/{name}",
-                web::delete().to(api_shortcut_delete),
-            )
-            .route("/api/{_:.*}", web::method(Method::OPTIONS).to(|| HttpResponse::Ok()))
-            .default_service(web::to(default_service))
-            .wrap_fn(|req, srv| {
-                let origin = match req.headers().get("Origin") {
-                    Some(origin) => String::from(origin.to_str().unwrap_or_default()),
-                    _ => String::new(),
-                };
-                let fut = srv.call(req);
+    HttpServer::new(move || App::new()
+        .data(web_settings.clone())
+        .data(shortcuts.clone())
+        .data(settings.clone())
+        .data(dashboard.clone())
+        .data(group.clone())
+        .data(Client::new())
+        .route("/src/settings.js", web::get().to(settings_js))
+        .route("/api/shortcut", web::get().to(api_shortcuts_list))
+        .route("/api/shortcut/{name}", web::get().to(api_shortcut_get))
+        .route("/api/shortcut/{name}", web::post().to(api_shortcut_post))
+        .route("/api/dashboard", web::get().to(api_dashboard_list))
+        .route("/api/dashboard/{name}", web::get().to(api_dashboard_get))
+        .route("/api/dashboard/{name}", web::post().to(api_dashboard_post))
+        .route("/api/dashboard/{name}", web::delete().to(api_dashboard_delete))
+        .route("/api/group/{name}", web::get().to(api_group_get))
+        .route("/api/group/{name}", web::post().to(api_group_post))
+        .route("/api/group/{name}", web::delete().to(api_group_delete))
+        .route(
+            "/api/shortcut/{name}",
+            web::delete().to(api_shortcut_delete),
+        )
+        .route("/api/{_:.*}", web::method(Method::OPTIONS).to(|| HttpResponse::Ok()))
+        .default_service(web::to(default_service))
+        .wrap_fn(|req, srv| {
+            let origin = match req.headers().get("Origin") {
+                Some(origin) => String::from(origin.to_str().unwrap_or_default()),
+                _ => String::new(),
+            };
+            let fut = srv.call(req);
 
-                async move {
-                    let mut res: ServiceResponse = fut.await.unwrap();
+            async move {
+                let mut res: ServiceResponse = fut.await.unwrap();
 
-                    res.headers_mut().insert(
-                        ACCESS_CONTROL_ALLOW_HEADERS,
-                        HeaderValue::from_str("Authorization, Content-Type, Cookie").unwrap(),
-                    );
-                    res.headers_mut().insert(
-                        ACCESS_CONTROL_ALLOW_METHODS,
-                        HeaderValue::from_str("GET, POST, PUT, PATCH, DELETE, CALL").unwrap(),
-                    );
-                    res.headers_mut().insert(
-                        ACCESS_CONTROL_ALLOW_ORIGIN,
-                        HeaderValue::from_str(origin.as_str()).unwrap(),
-                    );
-                    res.headers_mut().insert(
-                        ACCESS_CONTROL_ALLOW_CREDENTIALS,
-                        HeaderValue::from_str("true").unwrap(),
-                    );
+                res.headers_mut().insert(
+                    ACCESS_CONTROL_ALLOW_HEADERS,
+                    HeaderValue::from_str("Authorization, Content-Type, Cookie").unwrap(),
+                );
+                res.headers_mut().insert(
+                    ACCESS_CONTROL_ALLOW_METHODS,
+                    HeaderValue::from_str("GET, POST, PUT, PATCH, DELETE, CALL").unwrap(),
+                );
+                res.headers_mut().insert(
+                    ACCESS_CONTROL_ALLOW_ORIGIN,
+                    HeaderValue::from_str(origin.as_str()).unwrap(),
+                );
+                res.headers_mut().insert(
+                    ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                    HeaderValue::from_str("true").unwrap(),
+                );
 
-                    Ok(res)
-                }
-            })
-    })
+                Ok(res)
+            }
+        }))
         .bind(bind_addr)?
         .run()
         .await
@@ -85,11 +83,11 @@ pub async fn start_web_server(
 
 async fn settings_js(settings: Data<Addr<WebSettingsService>>) -> impl Responder {
     match settings.send(WebSettingsCompiledMessage::Get).await {
-        Ok(value) => value,
+        Ok(value) => HttpResponse::Ok().header("Content-Type", "application/javascript").body(value),
         Err(error) => {
             eprintln!("[ERROR] [Web Server] {:?}", error);
 
-            String::new()
+            HttpResponse::InternalServerError().body("Server error occurred. For more information ask the system administrator")
         }
     }
 }

@@ -19,15 +19,15 @@ pub struct WebSettings {
     pub mqtt_password: String,
 
     #[serde(
-        rename = "settings.mqtt_url",
+        rename = "settings.backend_url",
         default = "WebSettings::default_backend_url"
     )]
     pub backend_url: String,
 
-    #[serde(rename = "settings.mqtt_user", default)]
+    #[serde(rename = "settings.backend_user", default)]
     pub backend_user: String,
 
-    #[serde(rename = "settings.mqtt_pass", default)]
+    #[serde(rename = "settings.backend_pass", default)]
     pub backend_pass: String,
 }
 
