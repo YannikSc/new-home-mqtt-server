@@ -4,7 +4,10 @@ use std::net::ToSocketAddrs;
 use actix::Addr;
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, web};
 use actix_web::client::Client;
+use actix_web::dev::{Service, ServiceResponse};
 use actix_web::Error;
+use actix_web::http::{HeaderValue, Method};
+use actix_web::http::header::{ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN};
 use actix_web::web::{Bytes, Data, Json, Path};
 use serde_json::Value;
 
@@ -27,7 +30,7 @@ pub async fn start_web_server(
             .data(dashboard.clone())
             .data(group.clone())
             .data(Client::new())
-            .route("/settings.js", web::get().to(settings_js))
+            .route("/src/settings.js", web::get().to(settings_js))
             .route("/api/shortcut", web::get().to(api_shortcuts_list))
             .route("/api/shortcut/{name}", web::get().to(api_shortcut_get))
             .route("/api/shortcut/{name}", web::post().to(api_shortcut_post))
@@ -42,7 +45,38 @@ pub async fn start_web_server(
                 "/api/shortcut/{name}",
                 web::delete().to(api_shortcut_delete),
             )
+            .route("/api/{_:.*}", web::method(Method::OPTIONS).to(|| HttpResponse::Ok()))
             .default_service(web::to(default_service))
+            .wrap_fn(|req, srv| {
+                let origin = match req.headers().get("Origin") {
+                    Some(origin) => String::from(origin.to_str().unwrap_or_default()),
+                    _ => String::new(),
+                };
+                let fut = srv.call(req);
+
+                async move {
+                    let mut res: ServiceResponse = fut.await.unwrap();
+
+                    res.headers_mut().insert(
+                        ACCESS_CONTROL_ALLOW_HEADERS,
+                        HeaderValue::from_str("Authorization, Content-Type, Cookie").unwrap(),
+                    );
+                    res.headers_mut().insert(
+                        ACCESS_CONTROL_ALLOW_METHODS,
+                        HeaderValue::from_str("GET, POST, PUT, PATCH, DELETE, CALL").unwrap(),
+                    );
+                    res.headers_mut().insert(
+                        ACCESS_CONTROL_ALLOW_ORIGIN,
+                        HeaderValue::from_str(origin.as_str()).unwrap(),
+                    );
+                    res.headers_mut().insert(
+                        ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                        HeaderValue::from_str("true").unwrap(),
+                    );
+
+                    Ok(res)
+                }
+            })
     })
         .bind(bind_addr)?
         .run()
