@@ -55,7 +55,7 @@ impl WebSettings {
     }
 
     pub fn default_backend_url() -> String {
-        String::from("ws://127.0.0.1:9001")
+        String::from("ws://127.0.0.1:9002")
     }
 }
 
