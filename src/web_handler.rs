@@ -11,6 +11,7 @@ use actix_web::http::header::{ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_A
 use actix_web::web::{Bytes, Data, Json, Path};
 use serde_json::Value;
 
+use crate::mime_type_mapper::MimeTypeMapper;
 use crate::services::{DashboardData, DashboardMessage, DashboardService, GroupData, GroupMessage, GroupService, ShortcutData, ShortcutsMessage, ShortcutsService, WebSettingsCompiledMessage, WebSettingsService};
 use crate::settings::{AppSettings, ServerType};
 
@@ -29,6 +30,7 @@ pub async fn start_web_server(
         .data(dashboard.clone())
         .data(group.clone())
         .data(Client::new())
+        .data(MimeTypeMapper::default())
         .route("/src/settings.js", web::get().to(settings_js))
         .route("/api/shortcut", web::get().to(api_shortcuts_list))
         .route("/api/shortcut/{name}", web::get().to(api_shortcut_get))
@@ -276,11 +278,12 @@ async fn default_service(
     req: HttpRequest,
     body: Bytes,
     client: Data<Client>,
+    mime_type_mapper: Data<MimeTypeMapper>,
     settings: Data<AppSettings>,
 ) -> Result<HttpResponse, Error> {
     match &settings.server_type {
         ServerType::Proxy(base_url) => default_proxy(req, body, client, base_url.clone()).await,
-        ServerType::File(public_path) => Ok(default_serve(public_path.clone()).await),
+        ServerType::File(public_path) => default_serve(req, public_path.clone(), mime_type_mapper).await,
     }
 }
 
@@ -307,6 +310,20 @@ async fn default_proxy(
     Ok(client_response.body(response.body().limit(10240000).await?))
 }
 
-async fn default_serve(public_path: String) -> HttpResponse {
-    HttpResponse::from(public_path)
+async fn default_serve(request: HttpRequest, public_path: String, mime_type_mapper: Data<MimeTypeMapper>) -> Result<HttpResponse, Error> {
+    let read_path = format!(
+        "{}/{}",
+        public_path.trim_end_matches("/"),
+        String::from(request.uri().path()).trim_start_matches("/")
+    );
+    let mime_type = mime_type_mapper.match_file(&read_path);
+
+    match std::fs::read(read_path) {
+        Ok(content) => Ok(HttpResponse::Ok().header("Content-Type", mime_type).body(content)),
+        Err(error) => {
+            eprintln!("[ERROR] [WebServer]: Could not open file {:?}", error);
+
+            Ok(HttpResponse::NotFound().body("File not found."))
+        }
+    }
 }

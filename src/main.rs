@@ -20,6 +20,7 @@ mod services;
 mod settings;
 mod thread_helper;
 mod web_handler;
+mod mime_type_mapper;
 
 fn main() {
     let app_settings = AppSettings::load();
