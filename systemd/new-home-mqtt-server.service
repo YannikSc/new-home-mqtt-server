@@ -1,0 +1,13 @@
+[Unit]
+Description=New Home Core. Connector for all new-home applications
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/etc/new-home-mqtt-server
+ExecStart=/usr/bin/new-home-mqtt-server --no-console
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

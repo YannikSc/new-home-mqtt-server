@@ -31,7 +31,7 @@ pub async fn start_web_server(
         .data(group.clone())
         .data(Client::new())
         .data(MimeTypeMapper::default())
-        .route("/src/settings.js", web::get().to(settings_js))
+        .route("/settings.js", web::get().to(settings_js))
         .route("/api/shortcut", web::get().to(api_shortcuts_list))
         .route("/api/shortcut/{name}", web::get().to(api_shortcut_get))
         .route("/api/shortcut/{name}", web::post().to(api_shortcut_post))

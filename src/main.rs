@@ -7,6 +7,8 @@
 
 extern crate serde;
 
+use std::env::args;
+
 use actix::Actor;
 use actix_web::rt::{Arbiter, System};
 
@@ -23,6 +25,14 @@ mod web_handler;
 mod mime_type_mapper;
 
 fn main() {
+    let mut console_enabled = true;
+
+    for arg in args() {
+        if arg.eq("--no-console") {
+            console_enabled = false;
+        }
+    }
+
     let app_settings = AppSettings::load();
     app_settings.save();
 
@@ -46,16 +56,18 @@ fn main() {
         GroupService::start_in_arbiter(&group_arbiter, |_| GroupService::new(group_dashboard_addr));
 
     let mut console_arbiter = Arbiter::new();
-    let console_settings = Clone::clone(&web_settings_addr);
-    let console_shortcuts = Clone::clone(&shortcuts_addr);
-    let console_dashboard = Clone::clone(&dashboard_addr);
-    let console_group = Clone::clone(&group_addr);
-    ConsoleApp::start_in_arbiter(&console_arbiter, move |_| ConsoleApp::new(
-        console_settings,
-        console_shortcuts,
-        console_dashboard,
-        console_group,
-    ));
+    if console_enabled {
+        let console_settings = Clone::clone(&web_settings_addr);
+        let console_shortcuts = Clone::clone(&shortcuts_addr);
+        let console_dashboard = Clone::clone(&dashboard_addr);
+        let console_group = Clone::clone(&group_addr);
+        ConsoleApp::start_in_arbiter(&console_arbiter, move |_| ConsoleApp::new(
+            console_settings,
+            console_shortcuts,
+            console_dashboard,
+            console_group,
+        ));
+    }
 
     let server = start_web_server(
         format!("{}:{}", &app_settings.host, &app_settings.port),
